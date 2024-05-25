@@ -5,21 +5,20 @@ from .scoreboard import Scoreboard
 import time
 
 class GameControl():
-    def __init__(self, width=600, height=600, time_interval=0.1, segment_size=15):
+    def __init__(self, width=600, height=600, time_interval=0.1, segment_size=15, render=False):
         self.width = width
         self.height = height
         self.time_interval = time_interval
         self.segment_size = segment_size
+
+        self.snake = Snake()
+        self.food = Food()
+        self.scoreboard = Scoreboard()
         self.screen = Screen()
         self.screen.setup(width=self.width, height=self.height)
         self.screen.bgcolor("black")
         self.screen.title("My Snake Game")
         self.screen.tracer(0)
-
-        self.snake = Snake()
-        self.food = Food()
-        self.scoreboard = Scoreboard()
-
         self.screen.listen()
         self.screen.onkey(self.snake.up, "Up")
         self.screen.onkey(self.snake.down, "Down")
@@ -31,24 +30,27 @@ class GameControl():
     def run(self):
         while self.game_is_on:
             self.screen.update()
-            # time.sleep(self.time_interval)
+            time.sleep(self.time_interval)
             self.snake.move()
 
             self.handle_collision() 
 
-    # Handle collision with food, wall and tail. Return True if game_over() is called, else return False.
+    # Handle collision with food, wall and tail
+    # Return status and game over status
     def handle_collision(self):
+        status = -1
         # Detect collision with food.
         if self.snake.head.distance(self.food) < self.segment_size:
             self.food.refresh()
             self.snake.extend()
             self.scoreboard.increase_score()
+            status = 2
 
         # Detect collision with wall.
         if self.snake.head.xcor() > (self.width/2 - self.segment_size) or self.snake.head.xcor() < (-self.width/2 + self.segment_size) or self.snake.head.ycor() > (self.height/2 - self.segment_size) or self.snake.head.ycor() <  (-self.height/2 + self.segment_size):
             self.game_is_on = False
             self.scoreboard.game_over()
-            return True
+            return (1, True)
 
         # Detect collision with tail.
         for segment in self.snake.segments:
@@ -57,9 +59,9 @@ class GameControl():
             elif self.snake.head.distance(segment) < self.segment_size:
                 self.game_is_on = False
                 self.scoreboard.game_over()
-                return True
+                return (0, True)
             
-        return False
+        return (status, False)
 
     def reset(self):
         self.snake.reset()

@@ -10,8 +10,7 @@ gamma         = 0.98
 buffer_limit  = 50000
 batch_size    = 128
 
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-device = torch.device("cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class ReplayBuffer():
   def __init__(self, buffer_size):
@@ -38,7 +37,6 @@ class DQN(torch.nn.Module):
     self.fc3 = torch.nn.Linear(128, output_dim)
 
   def forward(self, x):
-    x = x.float()
     x = torch.relu(self.fc1(x))
     x = torch.relu(self.fc2(x))
     x = self.fc3(x)
@@ -56,10 +54,10 @@ def train_model(model, target_model, buffer, optimizer, gamma, batch_size):
     return
   batch = buffer.sample(batch_size)
   states, actions, rewards, next_states, dones = zip(*batch)
-  states = torch.tensor(np.array(states), dtype=torch.int8).to(device)
+  states = torch.tensor(np.array(states), dtype=torch.float32).to(device)
   actions = torch.tensor(np.array(actions), dtype=torch.int).to(device)
-  rewards = torch.tensor(np.array(rewards), dtype=torch.int8).to(device)
-  next_states = torch.tensor(np.array(next_states), dtype=torch.int8).to(device)
+  rewards = torch.tensor(np.array(rewards), dtype=torch.float32).to(device)
+  next_states = torch.tensor(np.array(next_states), dtype=torch.float32).to(device)
   dones = torch.tensor(np.array(dones), dtype=torch.bool).to(device)
 
   q_values = model(states)
@@ -72,29 +70,9 @@ def train_model(model, target_model, buffer, optimizer, gamma, batch_size):
   loss.backward()
   optimizer.step()
 
-def test_model():
-  # env = gym.make('CartPole-v1', render_mode='human')
-  env = SnakeGame()
-  input_dim = env.observation_space.shape[0]
-  output_dim = env.action_space.n
-  model = DQN(input_dim, output_dim).to(device)
-  model.load_state_dict(torch.load('model.pth'))
-  model.eval()
-  for episode in range(100):
-    state, *_ = env.reset()
-    done = False
-    total_reward = 0
-    while not done:
-      env.render()
-      action = torch.argmax(model(torch.tensor(np.array(state), dtype=torch.float32))).item()
-      state, reward, done, *_ = env.step(action)
-      total_reward += reward
-    print(f'Episode: {episode}, Total Reward: {total_reward}')
-
 def main():
-  # env = gym.make('CartPole-v1')
   env = SnakeGame()
-  input_dim = env.observation_space.shape[0] * env.observation_space.shape[1]
+  input_dim = 7
   output_dim = env.action_space.n
   model = DQN(input_dim, output_dim).to(device)
   target_model = DQN(input_dim, output_dim).to(device)
@@ -103,10 +81,10 @@ def main():
   optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
   epsilon = 1
   epsilon_decay = 0.995
-  min_epsilon = 0.01
+  min_epsilon = 0.1
   update_target_rate = 10
 
-  for episode in range(1000):
+  for episode in range(1001):
     state, *_ = env.reset()
     done = False
     total_reward = 0
@@ -124,8 +102,8 @@ def main():
       print(f'Episode: {episode}, Average reward: {total_reward / update_target_rate:.2f}, epsilon: {epsilon:.2}')
       print('Target model updated')
 
-  torch.save(model.state_dict(), 'model.pth')
+    if episode % 100 == 0 and episode > 0:
+      torch.save(model.state_dict(), f'model{str(episode)}.pth')
 
 if __name__ == '__main__':
   main()
-  # test_model()
