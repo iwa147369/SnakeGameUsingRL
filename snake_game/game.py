@@ -63,6 +63,8 @@ class GameControl():
             
         return (status, False)
 
+    # FIXME: Current snake.reset() function does not destroy the snake object, 
+    # so the snake object is still in the memory
     def reset(self):
         self.snake.reset()
         self.food.refresh()
@@ -70,8 +72,6 @@ class GameControl():
         self.game_is_on = True
         
     def exit(self):
+        self.reset()
         self.screen.exitonclick()
-
-
-# game = GameControl(800, 800)
-# game.run()
+        self.screen.bye()

@@ -7,8 +7,8 @@ from snake_game_env import SnakeGame
 
 learning_rate = 0.0005
 gamma         = 0.98
-buffer_limit  = 50000
-batch_size    = 128
+buffer_limit  = 20000
+batch_size    = 4096
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -72,7 +72,7 @@ def train_model(model, target_model, buffer, optimizer, gamma, batch_size):
 
 def main():
   env = SnakeGame()
-  input_dim = 7
+  input_dim = env.observation_space.shape[0]
   output_dim = env.action_space.n
   model = DQN(input_dim, output_dim).to(device)
   target_model = DQN(input_dim, output_dim).to(device)
@@ -80,14 +80,16 @@ def main():
   buffer = ReplayBuffer(buffer_limit)
   optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
   epsilon = 1
-  epsilon_decay = 0.995
+  epsilon_decay = 0.997
   min_epsilon = 0.1
   update_target_rate = 10
 
+  min_reward = 0
   for episode in range(1001):
     state, *_ = env.reset()
     done = False
     total_reward = 0
+    
     while not done:
       action = model.sample_action(state, epsilon, output_dim)
       env.render()
@@ -101,9 +103,13 @@ def main():
       target_model.load_state_dict(model.state_dict())
       print(f'Episode: {episode}, Average reward: {total_reward / update_target_rate:.2f}, epsilon: {epsilon:.2}')
       print('Target model updated')
+    
+    if total_reward > min_reward:
+      min_reward = total_reward
+      torch.save(model.state_dict(), f'model{str(episode)}_{str(total_reward)}.pth')
 
     if episode % 100 == 0 and episode > 0:
-      torch.save(model.state_dict(), f'model{str(episode)}.pth')
+      torch.save(model.state_dict(), f'model{str(episode)}_{str(total_reward)}.pth')
 
 if __name__ == '__main__':
   main()
